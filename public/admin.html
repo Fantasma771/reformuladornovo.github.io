@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head><base href="https://d16ilfvy4mv02r.cloudfront.net/workspaces/lHczcJdWK2BJRyD0bz9taDejcR1T8WIA/f19a50e1-2f10-4acc-b4d3-c3acfe748f89/files/">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Painel Admin — Equipe Fantasma</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',Tahoma,sans-serif;background:#eef0f8;min-height:100vh;padding:24px 16px 48px;color:#1a1a2e;}
+  header{max-width:1100px;margin:0 auto 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+  header h1{font-size:1.4rem;color:#3a3aff;}
+  header a{color:#3a3aff;font-size:0.85rem;text-decoration:none;margin-left:14px;}
+  .wrap{max-width:1100px;margin:0 auto;}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  @media(max-width:800px){.cards{grid-template-columns:repeat(2,1fr);}}
+  .card{background:#fff;border-radius:14px;box-shadow:0 3px 14px rgba(0,0,0,0.09);padding:18px;text-align:center;}
+  .card .num{font-size:1.8rem;font-weight:800;color:#3a3aff;}
+  .card .lbl{font-size:0.75rem;color:#888;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;}
+  .panel{background:#fff;border-radius:14px;box-shadow:0 3px 14px rgba(0,0,0,0.09);padding:20px;margin-bottom:24px;}
+  .panel h2{font-size:1rem;color:#3a3aff;margin-bottom:14px;}
+  table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #eee;}
+  th{color:#777;text-transform:uppercase;font-size:0.68rem;letter-spacing:0.5px;}
+  .tag-ok{color:#00875a;font-weight:700;}
+  .tag-fail{color:#c0392b;font-weight:700;}
+  .tag-online{background:#e6f9f0;color:#00875a;padding:2px 8px;border-radius:10px;font-size:0.72rem;font-weight:700;}
+  form.inline{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+  form.inline input,form.inline select{padding:7px 10px;border:1.5px solid #dde1f0;border-radius:8px;font-size:0.82rem;}
+  form.inline button{background:#3a3aff;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:0.82rem;font-weight:700;cursor:pointer;}
+  .muted{color:#999;font-size:0.78rem;}
+  .del-btn{color:#c0392b;cursor:pointer;font-size:0.78rem;background:none;border:none;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 Painel Admin — Equipe Fantasma</h1>
+  <div>
+    <a href="/app.html">Voltar à ferramenta</a>
+    <a href="#" id="logoutLink">Sair</a>
+  </div>
+</header>
+<div class="wrap">
+
+  <div class="cards">
+    <div class="card"><div class="num" id="cOnline">-</div><div class="lbl">Online agora</div></div>
+    <div class="card"><div class="num" id="cUsers">-</div><div class="lbl">Usuários cadastrados</div></div>
+    <div class="card"><div class="num" id="cLogins">-</div><div class="lbl">Logins hoje</div></div>
+    <div class="card"><div class="num" id="cAct">-</div><div class="lbl">Ações hoje</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>🟢 Usuários online agora (últimos 5 min)</h2>
+    <table>
+      <thead><tr><th>Usuário</th><th>Última atividade</th></tr></thead>
+      <tbody id="onlineBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>🔑 Histórico de login</h2>
+    <table>
+      <thead><tr><th>Usuário</th><th>IP</th><th>Status</th><th>Navegador</th><th>Data/Hora</th></tr></thead>
+      <tbody id="loginsBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>🔍 Atividades e pesquisas realizadas</h2>
+    <table>
+      <thead><tr><th>Usuário</th><th>Ação</th><th>Detalhe</th><th>IP</th><th>Data/Hora</th></tr></thead>
+      <tbody id="activitiesBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <h2>👤 Gerenciar usuários</h2>
+    <table>
+      <thead><tr><th>Usuário</th><th>Perfil</th><th>Criado em</th><th></th></tr></thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+    <form class="inline" id="newUserForm">
+      <input type="text" id="newUsername" placeholder="novo usuário" required/>
+      <input type="password" id="newPassword" placeholder="senha" required/>
+      <select id="newRole">
+        <option value="user">user</option>
+        <option value="admin">admin</option>
+      </select>
+      <button type="submit">Adicionar usuário</button>
+    </form>
+    <p class="muted" id="newUserMsg"></p>
+  </div>
+
+</div>
+
+<script>
+async function api(path, opts) {
+  const r = await fetch(path, opts);
+  if (r.status === 401 || r.status === 403) { window.location.href = '/login.html'; return null; }
+  return r.json();
+}
+
+function fmtDate(s) {
+  if (!s) return '';
+  return s.replace('T', ' ').replace('Z','');
+}
+
+async function loadStats() {
+  const d = await api('/api/admin/stats');
+  if (!d) return;
+  document.getElementById('cOnline').textContent = d.onlineNow;
+  document.getElementById('cUsers').textContent = d.totalUsers;
+  document.getElementById('cLogins').textContent = d.loginsToday;
+  document.getElementById('cAct').textContent = d.activitiesToday;
+}
+
+async function loadOnline() {
+  const rows = await api('/api/admin/online');
+  if (!rows) return;
+  document.getElementById('onlineBody').innerHTML = rows.map(r =>
+    `<tr><td>${r.username} <span class="tag-online">online</span></td><td>${fmtDate(r.last_seen)}</td></tr>`
+  ).join('') || '<tr><td colspan="2" class="muted">Ninguém online no momento</td></tr>';
+}
+
+async function loadLogins() {
+  const rows = await api('/api/admin/logins');
+  if (!rows) return;
+  document.getElementById('loginsBody').innerHTML = rows.map(r =>
+    `<tr><td>${r.username}</td><td>${r.ip || ''}</td><td>${r.success ? '<span class="tag-ok">sucesso</span>' : '<span class="tag-fail">falhou</span>'}</td><td class="muted">${(r.user_agent||'').slice(0,40)}</td><td>${fmtDate(r.created_at)}</td></tr>`
+  ).join('') || '<tr><td colspan="5" class="muted">Sem registros</td></tr>';
+}
+
+async function loadActivities() {
+  const rows = await api('/api/admin/activities');
+  if (!rows) return;
+  document.getElementById('activitiesBody').innerHTML = rows.map(r => {
+    let detail = '';
+    try {
+      const obj = JSON.parse(r.detail || '{}');
+      detail = Object.entries(obj).map(([k,v]) => `${k}: ${v}`).join(' | ');
+    } catch(e) { detail = r.detail || ''; }
+    return `<tr><td>${r.username || ''}</td><td>${r.action}</td><td class="muted">${detail}</td><td>${r.ip||''}</td><td>${fmtDate(r.created_at)}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="muted">Sem registros</td></tr>';
+}
+
+async function loadUsers() {
+  const rows = await api('/api/admin/users');
+  if (!rows) return;
+  document.getElementById('usersBody').innerHTML = rows.map(r =>
+    `<tr><td>${r.username}</td><td>${r.role}</td><td>${fmtDate(r.created_at)}</td><td><button class="del-btn" onclick="delUser(${r.id})">remover</button></td></tr>`
+  ).join('');
+}
+
+window.delUser = async function(id) {
+  if (!confirm('Remover este usuário?')) return;
+  await fetch('/api/admin/users/' + id, { method: 'DELETE' });
+  loadUsers();
+};
+
+document.getElementById('newUserForm').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const username = document.getElementById('newUsername').value.trim();
+  const password = document.getElementById('newPassword').value;
+  const role = document.getElementById('newRole').value;
+  const msg = document.getElementById('newUserMsg');
+  const r = await fetch('/api/admin/users', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ username, password, role })
+  });
+  const d = await r.json();
+  if (!r.ok) { msg.textContent = d.error || 'Erro ao criar usuário'; msg.style.color = '#c0392b'; return; }
+  msg.textContent = 'Usuário criado com sucesso.'; msg.style.color = '#00875a';
+  document.getElementById('newUserForm').reset();
+  loadUsers();
+});
+
+document.getElementById('logoutLink').addEventListener('click', async function(e){
+  e.preventDefault();
+  await fetch('/api/logout', { method: 'POST' });
+  window.location.href = '/login.html';
+});
+
+function refreshAll() {
+  loadStats(); loadOnline(); loadLogins(); loadActivities(); loadUsers();
+}
+refreshAll();
+setInterval(refreshAll, 15000);
+</script>
+</body>
+</html>

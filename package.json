@@ -1,0 +1,18 @@
+{
+  "name": "equipe-fantasma",
+  "version": "1.0.0",
+  "description": "Equipe Fantasma - ferramenta com login e painel admin",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-session": "^2.1.0",
+    "express": "^4.19.2"
+  }
+}

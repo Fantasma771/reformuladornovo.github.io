@@ -1,0 +1,11 @@
+kind: wasmer.io/App.v0
+name: equipe-fantasma
+package: .
+health_check:
+  path: /healthz
+  timeout: 10s
+env:
+  PORT: "3000"
+cli_args:
+  - "node"
+  - "server.js"
